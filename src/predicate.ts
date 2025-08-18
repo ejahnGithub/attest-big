@@ -8,7 +8,7 @@ export type PredicateInputs = {
   predicatePath: string
 }
 
-const MAX_PREDICATE_SIZE_BYTES = 16 * 1024 * 1024
+const MAX_PREDICATE_SIZE_BYTES = 100 * 1024 * 1024
 
 // Returns the predicate specified by the action's inputs. The predicate value
 // may be specified as a path to a file or as a string.

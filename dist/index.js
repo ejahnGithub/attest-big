@@ -74005,7 +74005,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.predicateFromInputs = void 0;
 const fs_1 = __importDefault(__nccwpck_require__(79896));
-const MAX_PREDICATE_SIZE_BYTES = 16 * 1024 * 1024;
+const MAX_PREDICATE_SIZE_BYTES = 100 * 1024 * 1024;
 // Returns the predicate specified by the action's inputs. The predicate value
 // may be specified as a path to a file or as a string.
 const predicateFromInputs = (inputs) => {
