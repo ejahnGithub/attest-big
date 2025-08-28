@@ -1,0 +1,96 @@
+name: Custom
+
+on:
+  workflow_dispatch:
+    inputs:
+      size:
+        description: 'predicate length'
+        type: string
+        required: true
+        default: 16
+
+permissions: {}
+
+jobs:
+  test-typescript:
+    name: TypeScript Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@b39b52d1213e96004bfcb1c61a8a6fa8ab84f3e8 # v4.0.1
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install Dependencies
+        id: npm-ci
+        run: npm ci
+
+      - name: Check Format
+        id: npm-format-check
+        run: npm run format:check
+
+      - name: Lint
+        id: npm-lint
+        run: npm run lint
+
+      - name: Test
+        id: npm-ci-test
+        run: npm run ci-test
+
+  test-attest:
+    name: Test attest action
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    env:
+      SUBJECT: /repos/${{ github.repository }}/tarball/${{ github.sha }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Calculate subject digest
+        id: subject
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA_256=$(gh api "${{ env.SUBJECT }}" | shasum -a 256 | cut -d " " -f 1)
+          echo "sha-256=${SHA_256}" >> "$GITHUB_OUTPUT"
+      - name: Construct predicate name base on the size
+        id: construct-predicate-name
+        run: |
+          size='${{ github.event.inputs.size }}'
+          # validate input and fallback to default 16 if invalid
+          if ! [[ "$size" =~ ^[0-9]+$ ]] || [ "$size" -le 0 ]; then
+            echo "Invalid size '$size', using default 16" >&2
+            size=16
+          fi
+          # construct repeated 'a' string of length $size
+          predicate=$(printf 'a%.0s' $(seq 1 "$size"))
+          echo "predicate_name=$predicate" >> "$GITHUB_OUTPUT"
+        shell: bash
+      - name: Run attest
+        id: attest
+        env:
+          INPUT_PRIVATE-SIGNING: 'true'
+        uses: ./
+        with:
+          subject-name: 'https://api.github.com${{ env.SUBJECT }}'
+          subject-digest: 'sha256:${{ steps.subject.outputs.sha-256 }}'
+          predicate-type:
+            'https://in-toto.io/${{
+            steps.construct-predicate-name.outputs.predicate_name }}'
+          predicate:
+            '{"purl":"pkg:github/${{ github.repository }}@${{ github.sha }}"}'
+      - name: Dump output
+        run: jq < ${{ steps.attest.outputs.bundle-path }}
